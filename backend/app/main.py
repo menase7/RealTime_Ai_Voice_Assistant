@@ -1,16 +1,27 @@
 import time
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_db, init_db
+from app.api.auth import router as auth_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for database table initialization and cleanup."""
+    await init_db()
+    yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Real-Time AI Voice Assistant API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Set up CORS middleware
@@ -22,6 +33,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include Authentication routers
+app.include_router(auth_router, prefix="/auth")
+app.include_router(auth_router, prefix="/api/auth")
+
 start_time = time.time()
 
 
@@ -31,7 +46,7 @@ async def root():
         "message": "Welcome to the Real-Time AI Voice Assistant API",
         "docs": "/docs",
         "status": "operational",
-        "phase": 1
+        "phase": 2
     }
 
 
@@ -57,6 +72,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
             "status": db_status,
             "latency_ms": db_latency_ms
         },
-        "phase": 1,
-        "message": "Phase 1: Project Setup operational"
+        "phase": 2,
+        "message": "Phase 2: Authentication operational"
     }

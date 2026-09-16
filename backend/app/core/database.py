@@ -23,6 +23,14 @@ class Base(DeclarativeBase):
     pass
 
 
+async def init_db() -> None:
+    """Create all database tables defined in metadata."""
+    # Import all models so metadata is populated
+    import app.models  # noqa: F401
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for providing an async database session per request."""
     async with AsyncSessionLocal() as session:

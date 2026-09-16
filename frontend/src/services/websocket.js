@@ -1,6 +1,7 @@
 /**
  * Native WebSocket client service for real-time voice sessions.
- * Manages WebSocket lifecycle, state transitions, event dispatching, and cleanup.
+ * Manages WebSocket lifecycle, state transitions, event dispatching,
+ * and transmission of both JSON text frames and raw binary audio frames.
  */
 export class VoiceWebSocketService {
   constructor() {
@@ -13,7 +14,7 @@ export class VoiceWebSocketService {
    * Connect to the voice WebSocket endpoint.
    */
   connect(sessionId, token, callbacks = {}) {
-    this.disconnect(); // Ensure any existing connection is cleanly closed first
+    this.disconnect(); // Clean up any prior socket
     this.sessionId = sessionId;
     this.callbacks = callbacks;
 
@@ -24,13 +25,16 @@ export class VoiceWebSocketService {
     try {
       this.ws = new WebSocket(wsUrl);
 
+      // Handle binary audio chunks as Blobs / ArrayBuffers
+      this.ws.binaryType = 'arraybuffer';
+
       this.ws.onopen = (event) => {
         if (this.callbacks.onOpen) this.callbacks.onOpen(event);
       };
 
       this.ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const data = typeof event.data === 'string' ? JSON.parse(event.data) : { type: 'binary', size: event.data.byteLength };
           if (this.callbacks.onMessage) this.callbacks.onMessage(data);
         } catch (err) {
           if (this.callbacks.onMessage) this.callbacks.onMessage({ type: 'raw', content: event.data });
@@ -51,10 +55,10 @@ export class VoiceWebSocketService {
   }
 
   /**
-   * Send JSON message payload over WebSocket.
+   * Send JSON text control frame over WebSocket.
    */
   send(payload) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.isConnected()) {
       throw new Error('WebSocket is not connected');
     }
     const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
@@ -62,11 +66,21 @@ export class VoiceWebSocketService {
   }
 
   /**
+   * Send raw binary audio frame (Blob or ArrayBuffer) over WebSocket.
+   * Phase 6: MediaRecorder -> WebSocket -> FastAPI.
+   */
+  sendBinary(binaryData) {
+    if (!this.isConnected()) {
+      throw new Error('WebSocket is not connected to stream audio');
+    }
+    this.ws.send(binaryData);
+  }
+
+  /**
    * Disconnect and cleanup WebSocket.
    */
   disconnect() {
     if (this.ws) {
-      // Avoid firing close handlers during deliberate programmatic teardown
       this.ws.onopen = null;
       this.ws.onmessage = null;
       this.ws.onerror = null;

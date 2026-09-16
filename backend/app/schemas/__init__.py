@@ -5,10 +5,18 @@ from app.schemas.auth import (
     UserResponse,
     TokenResponse
 )
+from app.schemas.session import (
+    SessionCreate,
+    SessionUpdate,
+    SessionResponse
+)
 
 __all__ = [
     "UserRegister",
     "UserLogin",
     "UserResponse",
-    "TokenResponse"
+    "TokenResponse",
+    "SessionCreate",
+    "SessionUpdate",
+    "SessionResponse"
 ]

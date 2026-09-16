@@ -32,9 +32,10 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
-/**
- * Register a new user.
- */
+/* =========================================================================
+   Authentication API
+   ========================================================================= */
+
 export async function apiRegister(email, password) {
   return request('/auth/register', {
     method: 'POST',
@@ -42,9 +43,6 @@ export async function apiRegister(email, password) {
   });
 }
 
-/**
- * Authenticate existing user.
- */
 export async function apiLogin(email, password) {
   return request('/auth/login', {
     method: 'POST',
@@ -52,9 +50,6 @@ export async function apiLogin(email, password) {
   });
 }
 
-/**
- * Retrieve current user profile using JWT token.
- */
 export async function apiGetMe(token) {
   return request('/auth/me', {
     method: 'GET',
@@ -64,9 +59,51 @@ export async function apiGetMe(token) {
   });
 }
 
-/**
- * System health check for diagnostic dashboards.
- */
+/* =========================================================================
+   Sessions API (Phase 3)
+   ========================================================================= */
+
+export async function apiCreateSession(token, title) {
+  return request('/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ title: title || undefined }),
+  });
+}
+
+export async function apiGetSessions(token) {
+  return request('/sessions', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function apiGetSession(token, sessionId) {
+  return request(`/sessions/${sessionId}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function apiDeleteSession(token, sessionId) {
+  return request(`/sessions/${sessionId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+/* =========================================================================
+   Health Diagnostics API
+   ========================================================================= */
+
 export async function checkBackendHealth() {
   const start = performance.now();
   try {

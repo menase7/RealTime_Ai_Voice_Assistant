@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import SessionsPage from './pages/SessionsPage';
 
 export default function App() {
   const { initialize } = useAuthStore();
@@ -31,7 +32,15 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            {/* Default redirect to /dashboard (which redirects to /login if unauthenticated) */}
+            <Route
+              path="/sessions"
+              element={
+                <ProtectedRoute>
+                  <SessionsPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Default redirect to /dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -40,7 +49,7 @@ export default function App() {
         <footer className="border-t border-slate-800/60 bg-slate-950/40 py-4 mt-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
             <div>Real-Time AI Voice Assistant • React 18, FastAPI, PostgreSQL</div>
-            <div className="font-mono text-indigo-400">Phase 2: JWT Authentication Active</div>
+            <div className="font-mono text-indigo-400">Phase 3: Session Management Active</div>
           </div>
         </footer>
       </div>

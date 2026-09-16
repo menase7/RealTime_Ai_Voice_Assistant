@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db, init_db
 from app.api.auth import router as auth_router
+from app.api.sessions import router as sessions_router
 
 
 @asynccontextmanager
@@ -37,6 +38,10 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth")
 app.include_router(auth_router, prefix="/api/auth")
 
+# Include Session routers
+app.include_router(sessions_router, prefix="/sessions")
+app.include_router(sessions_router, prefix="/api/sessions")
+
 start_time = time.time()
 
 
@@ -46,7 +51,7 @@ async def root():
         "message": "Welcome to the Real-Time AI Voice Assistant API",
         "docs": "/docs",
         "status": "operational",
-        "phase": 2
+        "phase": 3
     }
 
 
@@ -72,6 +77,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
             "status": db_status,
             "latency_ms": db_latency_ms
         },
-        "phase": 2,
-        "message": "Phase 2: Authentication operational"
+        "phase": 3,
+        "message": "Phase 3: Session Management operational"
     }

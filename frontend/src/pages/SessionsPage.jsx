@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Mic, 
   Plus, 
   Trash2, 
   Calendar, 
-  Clock, 
   Radio, 
   CheckCircle2, 
-  AlertCircle,
-  FolderOpen
+  AlertCircle
 } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import CreateSessionModal from '../components/CreateSessionModal';
@@ -67,7 +66,7 @@ export default function SessionsPage() {
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Manage your audio recordings, transcripts, and AI analysis history
+            Manage your audio recordings, transcripts, and real-time WebSocket sessions
           </p>
         </div>
 
@@ -145,6 +144,13 @@ export default function SessionsPage() {
                 </div>
 
                 <div className="flex items-center space-x-2 self-end sm:self-auto">
+                  <Link
+                    to={`/sessions/${s.id}/live`}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all hover:scale-[1.02]"
+                  >
+                    <Radio className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Join Live</span>
+                  </Link>
                   <button
                     onClick={() => handleDelete(s.id)}
                     disabled={deletingId === s.id}

@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import SessionsPage from './pages/SessionsPage';
+import LiveSessionPage from './pages/LiveSessionPage';
 
 export default function App() {
   const { initialize } = useAuthStore();
@@ -40,6 +41,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/sessions/:sessionId/live"
+              element={
+                <ProtectedRoute>
+                  <LiveSessionPage />
+                </ProtectedRoute>
+              }
+            />
             {/* Default redirect to /dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -49,7 +58,7 @@ export default function App() {
         <footer className="border-t border-slate-800/60 bg-slate-950/40 py-4 mt-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
             <div>Real-Time AI Voice Assistant • React 18, FastAPI, PostgreSQL</div>
-            <div className="font-mono text-indigo-400">Phase 3: Session Management Active</div>
+            <div className="font-mono text-indigo-400">Phase 4: WebSocket Streaming Active</div>
           </div>
         </footer>
       </div>

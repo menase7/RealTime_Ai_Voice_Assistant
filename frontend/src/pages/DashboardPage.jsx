@@ -11,7 +11,7 @@ import {
   User, 
   Activity,
   ArrowRight,
-  FolderOpen,
+  Radio,
   CheckCircle2
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
@@ -83,7 +83,7 @@ export default function DashboardPage() {
               Welcome, <span className="text-indigo-400">{user?.email?.split('@')[0] || 'User'}</span>
             </h2>
             <p className="text-sm text-slate-300 max-w-xl">
-              Create real-time voice sessions, capture live transcripts, and receive progressive AI analysis powered by Gemini.
+              Create real-time voice sessions, test low-latency WebSocket communication, and prepare for microphone audio streaming.
             </p>
           </div>
 
@@ -138,7 +138,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-white tracking-tight">Recent Sessions</h3>
-            <p className="text-xs text-slate-400">Your latest recorded audio sessions</p>
+            <p className="text-xs text-slate-400">Open a live WebSocket session or review history</p>
           </div>
           {sessions.length > 0 && (
             <Link
@@ -157,7 +157,7 @@ export default function DashboardPage() {
             </div>
             <div className="text-sm font-semibold text-slate-300">No voice sessions yet</div>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Create your first voice session to start recording and capturing real-time transcripts.
+              Create your first voice session to test real-time WebSocket communication.
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
@@ -172,23 +172,35 @@ export default function DashboardPage() {
             {recentSessions.map((s) => (
               <div
                 key={s.id}
-                className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2 hover:border-slate-700 transition-colors shadow-md"
+                className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-3 hover:border-slate-700 transition-colors shadow-md flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="font-semibold text-sm text-white truncate">{s.title}</h4>
-                  {getStatusBadge(s.status)}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-800/60">
-                  <span className="flex items-center gap-1">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-semibold text-sm text-white truncate">{s.title}</h4>
+                    {getStatusBadge(s.status)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
                     <Calendar className="w-3 h-3 text-slate-500" />
-                    {new Date(s.created_at).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  <span className="text-slate-500">{s.id.slice(0, 8)}</span>
+                    <span>
+                      {new Date(s.created_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-mono">ID: {s.id.slice(0, 8)}</span>
+                  <Link
+                    to={`/sessions/${s.id}/live`}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all hover:scale-[1.02]"
+                  >
+                    <Radio className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Join Live</span>
+                  </Link>
                 </div>
               </div>
             ))}
@@ -229,7 +241,7 @@ export default function DashboardPage() {
               <Layers className="w-4 h-4 text-indigo-400" />
               Roadmap Progress
             </h4>
-            <span className="text-xs font-semibold text-indigo-400">Step 3 of 12</span>
+            <span className="text-xs font-semibold text-indigo-400">Step 4 of 12</span>
           </div>
 
           <div className="space-y-2">
@@ -245,9 +257,13 @@ export default function DashboardPage() {
               <CheckCircle2 className="w-4 h-4" />
               <span>Phase 3: Session Management (Completed)</span>
             </div>
+            <div className="flex items-center gap-2 text-xs text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Phase 4: Basic WebSocket Lifecycle (Completed)</span>
+            </div>
             <div className="flex items-center gap-2 text-xs text-indigo-400 font-semibold">
               <ArrowRight className="w-4 h-4" />
-              <span>Phase 4: Basic WebSocket (Next)</span>
+              <span>Phase 5: MediaRecorder API (Next)</span>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db, init_db
 from app.api.auth import router as auth_router
 from app.api.sessions import router as sessions_router
+from app.api.voice import router as voice_router
 
 
 @asynccontextmanager
@@ -42,6 +43,9 @@ app.include_router(auth_router, prefix="/api/auth")
 app.include_router(sessions_router, prefix="/sessions")
 app.include_router(sessions_router, prefix="/api/sessions")
 
+# Include Voice WebSocket router
+app.include_router(voice_router, prefix="/ws")
+
 start_time = time.time()
 
 
@@ -51,7 +55,7 @@ async def root():
         "message": "Welcome to the Real-Time AI Voice Assistant API",
         "docs": "/docs",
         "status": "operational",
-        "phase": 3
+        "phase": 4
     }
 
 
@@ -77,6 +81,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
             "status": db_status,
             "latency_ms": db_latency_ms
         },
-        "phase": 3,
-        "message": "Phase 3: Session Management operational"
+        "phase": 4,
+        "message": "Phase 4: Basic WebSocket operational"
     }

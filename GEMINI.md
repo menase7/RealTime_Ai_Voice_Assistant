@@ -1000,22 +1000,95 @@ Successfully stream microphone audio from browser to FastAPI.
 
 ---
 
-## Phase 7 — AssemblyAI Realtime Transcription
+Phase 7 — AssemblyAI Realtime Transcription
 
-Integrate AssemblyAI.
+Integrate the current AssemblyAI Streaming Speech-to-Text API.
+
+Use the current v3 WebSocket endpoint:
+
+wss://streaming.assemblyai.com/v3/ws
+
+Use connection parameters such as:
+
+sample_rate=16000
+speech_model=u3-rt-pro
+
+The resulting URL can be:
+
+wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&speech_model=u3-rt-pro
 
 Build:
 
-* AssemblyAI streaming connection
-* audio forwarding
-* partial transcripts
-* final transcripts
-* transcript WebSocket events
-* frontend transcript display
+AssemblyAI streaming connection
+server-side AssemblyAI authentication
+FastAPI → AssemblyAI audio forwarding
+AssemblyAI → FastAPI transcript handling
+partial transcript handling
+final transcript handling
+normalized application transcript events
+FastAPI → browser WebSocket transcript events
+frontend transcript display
+graceful AssemblyAI termination
+error handling
+cleanup
+
+Architecture:
+
+Browser
+   │
+   │ PCM16 binary audio
+   ▼
+FastAPI WebSocket
+   │
+   │ PCM16 binary audio
+   ▼
+AssemblyAI WebSocket
+   │
+   │ Turn events
+   ▼
+FastAPI
+   │
+   │ normalized transcript events
+   ▼
+Browser
+   │
+   ▼
+Zustand
+   │
+   ▼
+React UI
+
+AssemblyAI transcript handling:
+
+Turn
+  ↓
+end_of_turn = false
+  ↓
+partial transcript
+
+Turn
+  ↓
+end_of_turn = true
+  ↓
+final transcript
+
+Do not duplicate partial transcript text in the final transcript list.
+
+When a final turn arrives:
+
+Replace/clear the current partial transcript.
+Add the final transcript to the final transcript collection.
+Persist the final transcript to PostgreSQL if appropriate.
+
+Use the official AssemblyAI documentation as the source of truth for the current API behavior.
+
+Do not use old v2 examples or the old endpoint:
+
+wss://api.assemblyai.com/v2/realtime/ws
 
 Goal:
 
-User speaks and sees their words appear in real time.
+The user speaks into the microphone and sees their speech appear as a live transcript in the application.
 
 ---
 

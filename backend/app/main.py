@@ -10,6 +10,7 @@ from app.core.database import get_db, init_db
 from app.api.auth import router as auth_router
 from app.api.sessions import router as sessions_router
 from app.api.voice import router as voice_router
+from app.api.analysis import router as analysis_router
 
 
 @asynccontextmanager
@@ -45,6 +46,9 @@ app.include_router(sessions_router, prefix="/api/sessions")
 
 # Include Voice WebSocket router
 app.include_router(voice_router, prefix="/ws")
+
+# Include Analysis SSE router (Phase 9)
+app.include_router(analysis_router, prefix="")
 
 start_time = time.time()
 

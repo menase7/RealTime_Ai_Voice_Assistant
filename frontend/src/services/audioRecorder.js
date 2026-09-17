@@ -1,42 +1,26 @@
 /**
- * Browser Audio Recording Service using the native MediaRecorder and Web Audio APIs.
- * Captures microphone stream, segments audio into progressive timesliced chunks,
- * computes real-time volume levels for visualization, and cleanly releases hardware tracks.
+ * Browser Audio Recording Service using Web Audio API.
+ * Captures microphone stream, resamples to 16,000 Hz mono,
+ * converts Float32 audio samples into standard 16-bit Linear PCM (little-endian),
+ * computes real-time volume levels for the visualizer, and cleanly releases hardware tracks.
  */
 export class AudioRecorderService {
   constructor() {
     this.mediaStream = null;
-    this.mediaRecorder = null;
     this.audioContext = null;
+    this.sourceNode = null;
+    this.processorNode = null;
     this.analyser = null;
     this.animationFrameId = null;
     this.chunkIndex = 0;
+    this._isRecording = false;
   }
 
   /**
-   * Determine the most suitable supported audio MIME type for streaming.
-   */
-  static getSupportedMimeType() {
-    const candidateTypes = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/mp4',
-    ];
-
-    for (const type of candidateTypes) {
-      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
-    }
-    return ''; // Browser default fallback
-  }
-
-  /**
-   * Request microphone permissions and start recording with progressive chunk emission.
+   * Request microphone permissions and start recording with progressive PCM16 chunk emission.
    * @param {Object} options
-   * @param {number} [options.timeslice=250] - Interval in milliseconds to emit audio chunks.
-   * @param {Function} options.onChunk - Callback receiving (blob, metadata).
+   * @param {number} [options.timeslice=250] - Interval in milliseconds (kept for compatibility).
+   * @param {Function} options.onChunk - Callback receiving (pcm16ArrayBuffer, metadata).
    * @param {Function} options.onAudioLevel - Callback receiving volume level (0-100).
    * @param {Function} options.onError - Callback on recording failure.
    */
@@ -57,40 +41,59 @@ export class AudioRecorderService {
         video: false,
       });
 
-      // 2. Initialize Web Audio Analyser for real-time visualizer volume monitoring
+      // 2. Initialize AudioContext at 16000 Hz
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      this.audioContext = new AudioContextClass({ sampleRate: 16000 });
+
+      // Handle suspended audio context (browser autoplay policies)
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+
+      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
+
+      // 3. Setup AnalyserNode for audio visualization
       this._setupAudioAnalyser(onAudioLevel);
 
-      // 3. Configure native MediaRecorder with preferred MIME type
-      const mimeType = AudioRecorderService.getSupportedMimeType();
-      const options = mimeType ? { mimeType } : {};
+      // 4. Setup ScriptProcessorNode for real-time PCM16 sample extraction
+      // Buffer size 4096 gives ~256ms at 16kHz
+      const bufferSize = 4096;
+      this.processorNode = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
 
-      this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
+      this.processorNode.onaudioprocess = (event) => {
+        if (!this._isRecording) return;
 
-      // 4. Progressive chunk emission listener
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          this.chunkIndex += 1;
-          const chunkMetadata = {
-            id: `chunk-${this.chunkIndex}-${Date.now()}`,
-            chunkIndex: this.chunkIndex,
-            sizeBytes: event.data.size,
-            mimeType: event.data.type || mimeType || 'audio/webm',
-            timestamp: new Date().toLocaleTimeString(),
-          };
+        const inputChannelData = event.inputBuffer.getChannelData(0); // Float32Array
 
-          if (onChunk) {
-            onChunk(event.data, chunkMetadata);
-          }
+        // Resample if AudioContext is operating at a non-16kHz rate (hardware default)
+        let samples16k = inputChannelData;
+        if (this.audioContext.sampleRate !== 16000) {
+          samples16k = this._downsampleBuffer(inputChannelData, this.audioContext.sampleRate, 16000);
+        }
+
+        // Convert Float32Array to 16-bit linear PCM (little-endian)
+        const pcm16Buffer = this._floatTo16BitPCM(samples16k);
+
+        this.chunkIndex += 1;
+        const chunkMetadata = {
+          id: `chunk-${this.chunkIndex}-${Date.now()}`,
+          chunkIndex: this.chunkIndex,
+          sizeBytes: pcm16Buffer.byteLength,
+          mimeType: 'audio/pcm;rate=16000;bits=16',
+          timestamp: new Date().toLocaleTimeString(),
+        };
+
+        if (onChunk) {
+          onChunk(pcm16Buffer, chunkMetadata);
         }
       };
 
-      this.mediaRecorder.onerror = (err) => {
-        if (onError) onError(err);
-      };
+      // Connect pipeline
+      this.sourceNode.connect(this.processorNode);
+      this.processorNode.connect(this.audioContext.destination);
 
-      // 5. Start timesliced chunk generation
-      this.mediaRecorder.start(timeslice);
-      return { success: true, mimeType: this.mediaRecorder.mimeType };
+      this._isRecording = true;
+      return { success: true, mimeType: 'audio/pcm;rate=16000;bits=16' };
     } catch (err) {
       this.stopRecording();
       if (onError) onError(err);
@@ -102,23 +105,18 @@ export class AudioRecorderService {
    * Connect an AnalyserNode to compute root-mean-square (RMS) volume levels.
    */
   _setupAudioAnalyser(onAudioLevel) {
-    if (!onAudioLevel || !this.mediaStream) return;
+    if (!onAudioLevel || !this.audioContext || !this.sourceNode) return;
 
     try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-
-      this.audioContext = new AudioContextClass();
-      const source = this.audioContext.createMediaStreamSource(this.mediaStream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
-      source.connect(this.analyser);
+      this.sourceNode.connect(this.analyser);
 
       const bufferLength = this.analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
       const updateLevel = () => {
-        if (!this.analyser) return;
+        if (!this.analyser || !this._isRecording) return;
         this.analyser.getByteFrequencyData(dataArray);
 
         let sum = 0;
@@ -139,33 +137,78 @@ export class AudioRecorderService {
   }
 
   /**
+   * Convert Float32Array [-1.0, 1.0] to 16-bit linear PCM (little-endian) ArrayBuffer.
+   */
+  _floatTo16BitPCM(float32Array) {
+    const buffer = new ArrayBuffer(float32Array.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < float32Array.length; i++) {
+      const s = Math.max(-1, Math.min(1, float32Array[i]));
+      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
+  }
+
+  /**
+   * Downsample audio buffer from inputRate to outputRate.
+   */
+  _downsampleBuffer(buffer, inputRate, outputRate) {
+    if (inputRate === outputRate) return buffer;
+    const ratio = inputRate / outputRate;
+    const newLength = Math.round(buffer.length / ratio);
+    const result = new Float32Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+      let accum = 0;
+      let count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+        accum += buffer[i];
+        count++;
+      }
+      result[offsetResult] = count > 0 ? accum / count : 0;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
+  }
+
+  /**
    * Stop recording, stop all microphone hardware tracks, and release resources.
    */
   stopRecording() {
+    this._isRecording = false;
+
     // 1. Cancel audio level animation loop
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
 
-    // 2. Stop MediaRecorder
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+    // 2. Disconnect and clean up processor & source
+    if (this.processorNode) {
       try {
-        this.mediaRecorder.stop();
-      } catch (err) {
-        // Ignored if already stopped
-      }
-      this.mediaRecorder = null;
+        this.processorNode.disconnect();
+      } catch (err) {}
+      this.processorNode.onaudioprocess = null;
+      this.processorNode = null;
     }
 
-    // 3. Stop each track on the MediaStream to turn off OS/browser microphone indicator
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect();
+      } catch (err) {}
+      this.sourceNode = null;
+    }
+
+    // 3. Stop each track on the MediaStream to turn off microphone LED/indicator
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((track) => {
         try {
           track.stop();
-        } catch (err) {
-          // Ignored
-        }
+        } catch (err) {}
       });
       this.mediaStream = null;
     }
@@ -174,9 +217,7 @@ export class AudioRecorderService {
     if (this.audioContext && this.audioContext.state !== 'closed') {
       try {
         this.audioContext.close();
-      } catch (err) {
-        // Ignored
-      }
+      } catch (err) {}
       this.audioContext = null;
       this.analyser = null;
     }
@@ -186,7 +227,7 @@ export class AudioRecorderService {
    * Check whether recording is currently in progress.
    */
   isRecording() {
-    return this.mediaRecorder && this.mediaRecorder.state === 'recording';
+    return this._isRecording;
   }
 }
 

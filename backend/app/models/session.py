@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.transcript import Transcript
 
 
 class Session(Base):
@@ -49,3 +50,9 @@ class Session(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="sessions")
+    transcripts: Mapped[List["Transcript"]] = relationship(
+        "Transcript",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="Transcript.timestamp"
+    )

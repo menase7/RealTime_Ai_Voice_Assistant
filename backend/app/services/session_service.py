@@ -95,3 +95,24 @@ async def delete_session(
     await db.delete(session)
     await db.commit()
     return True
+
+
+async def get_session_transcripts(
+    db: AsyncSession,
+    session_id: str,
+    user_id: str
+) -> Optional[List]:
+    """Retrieve all transcripts for an owned session, ordered chronologically."""
+    session = await get_session_by_id(db, session_id, user_id)
+    if not session:
+        return None
+
+    from app.models.transcript import Transcript
+    query = (
+        select(Transcript)
+        .where(Transcript.session_id == session_id)
+        .order_by(Transcript.timestamp.asc())
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+

@@ -29,6 +29,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ai_voice
       - JWT_SECRET=super-secret-key-change-in-production-phase-1
       - CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - ./backend:/app
     depends_on:

@@ -5,12 +5,14 @@ from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionResponse, SessionUpdate
+from app.schemas.transcript import TranscriptResponse
 from app.services.session_service import (
     create_session,
     get_user_sessions,
     get_session_by_id,
     delete_session,
-    update_session
+    update_session,
+    get_session_transcripts
 )
 
 router = APIRouter(tags=["Sessions"])
@@ -89,3 +91,19 @@ async def remove_session(
             detail="Session not found"
         )
     return {"message": "Session deleted successfully", "id": session_id}
+
+
+@router.get("/{session_id}/transcripts", response_model=List[TranscriptResponse])
+async def list_session_transcripts(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all transcripts belonging to a specific voice session owned by the authenticated user."""
+    transcripts = await get_session_transcripts(db, session_id=session_id, user_id=current_user.id)
+    if transcripts is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    return [TranscriptResponse.model_validate(t) for t in transcripts]

@@ -22,13 +22,17 @@ import {
 import { useSessionStore } from '../stores/sessionStore';
 import { useVoiceStore } from '../stores/voiceStore';
 import AudioVisualizer from '../components/AudioVisualizer';
+import TranscriptPanel from '../components/TranscriptPanel';
 
 export default function LiveSessionPage() {
   const { sessionId } = useParams();
   const { currentSession, fetchSessionById } = useSessionStore();
   const { 
-    // WebSocket state
+    // WebSocket & Streaming Connection State (Phase 8)
     connectionStatus, 
+    reconnectAttempts,
+    maxReconnectAttempts,
+    reconnectSession,
     latency, 
     eventLogs, 
     error: wsError, 
@@ -37,8 +41,10 @@ export default function LiveSessionPage() {
     sendPing, 
     sendTestMessage,
     clearLogs,
+    resetSessionState,
 
-    // MediaRecorder audio state (Phase 5)
+    // Audio & Recording Status (Phase 8)
+    recordingStatus,
     isRecording,
     recordingDuration,
     audioChunks,
@@ -50,7 +56,7 @@ export default function LiveSessionPage() {
     stopRecording,
     clearAudioChunks,
 
-    // Audio Streaming state (Phase 6)
+    // Audio Streaming state
     isStreamingAudio,
     serverChunksReceived,
     serverBytesReceived
@@ -65,12 +71,11 @@ export default function LiveSessionPage() {
       connectSession(sessionId);
     }
 
-    // Teardown: Stop microphone hardware tracks and close WebSocket on unmount
+    // Teardown: Stop microphone hardware tracks, timers and close WebSocket on unmount
     return () => {
-      stopRecording();
-      disconnectSession();
+      resetSessionState();
     };
-  }, [sessionId, fetchSessionById, connectSession, disconnectSession, stopRecording]);
+  }, [sessionId, fetchSessionById, connectSession, resetSessionState]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -89,6 +94,8 @@ export default function LiveSessionPage() {
 
   const isConnected = connectionStatus === 'connected';
   const isConnecting = connectionStatus === 'connecting';
+  const isReconnecting = connectionStatus === 'reconnecting';
+  const isError = connectionStatus === 'error';
 
   // Format seconds into MM:SS
   const formatDuration = (seconds) => {
@@ -128,16 +135,26 @@ export default function LiveSessionPage() {
                 {currentSession?.title || 'Live Voice Session'}
               </h2>
 
-              {/* WebSocket Status Badge */}
+              {/* WebSocket Status Badge (Phase 8 Multi-State) */}
               {isConnected ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                   CONNECTED
                 </span>
+              ) : isReconnecting ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 animate-pulse">
+                  <Activity className="w-3 h-3 text-amber-400 animate-spin" />
+                  RECONNECTING ({reconnectAttempts}/{maxReconnectAttempts})
+                </span>
               ) : isConnecting ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
                   CONNECTING
+                </span>
+              ) : isError ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  CONNECTION ERROR
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
@@ -146,16 +163,25 @@ export default function LiveSessionPage() {
                 </span>
               )}
 
-              {/* Streaming Audio Status Badge (Phase 6) */}
-              {isStreamingAudio ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  <Zap className="w-3 h-3 text-cyan-400 animate-pulse" />
-                  STREAMING AUDIO (FastAPI)
-                </span>
-              ) : isRecording ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30">
+              {/* Recording Lifecycle Status Badge (Phase 8) */}
+              {recordingStatus === 'recording' ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-                  RECORDING
+                  RECORDING (PCM16)
+                </span>
+              ) : recordingStatus === 'starting' ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  INITIALIZING MIC...
+                </span>
+              ) : recordingStatus === 'stopping' ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  FINALIZING...
+                </span>
+              ) : recordingStatus === 'error' ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  MIC ERROR
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
@@ -164,13 +190,21 @@ export default function LiveSessionPage() {
               )}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
-              ID: {sessionId} • WebSocket Audio Streaming Active
+              ID: {sessionId} • WebSocket Streaming Engine
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center space-x-3">
+          <Link
+            to={`/sessions/${sessionId}`}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 border border-violet-500/20 text-xs font-semibold transition-all hover:scale-[1.02]"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+            <span>AI Analysis (SSE)</span>
+          </Link>
+
           {isConnected ? (
             <button
               onClick={disconnectSession}
@@ -178,6 +212,14 @@ export default function LiveSessionPage() {
             >
               <WifiOff className="w-3.5 h-3.5 text-slate-400" />
               <span>Disconnect</span>
+            </button>
+          ) : isReconnecting || isError ? (
+            <button
+              onClick={reconnectSession}
+              className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-lg shadow-amber-600/20 transition-all"
+            >
+              <Activity className="w-3.5 h-3.5 animate-spin" />
+              <span>Retry Connection</span>
             </button>
           ) : (
             <button
@@ -205,14 +247,15 @@ export default function LiveSessionPage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5 text-center md:text-left">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">
-              Phase 6: MediaRecorder → WebSocket → FastAPI Pipeline
+              Phase 7: AssemblyAI Real-Time Transcription Pipeline
             </div>
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Real-Time Microphone Audio Streaming
+              Real-Time Microphone Audio & Speech Transcription
             </h3>
             <p className="text-xs text-slate-400 max-w-lg">
-              Binary audio slices stream directly into FastAPI over the active WebSocket channel with progressive server ingestion acknowledgements.
+              Microphone audio streams directly into FastAPI and AssemblyAI via WebSocket, yielding progressive partial drafts and persistent final speech transcripts.
             </p>
+
           </div>
 
           {/* Prominent Microphone Control Button */}
@@ -286,6 +329,9 @@ export default function LiveSessionPage() {
           </div>
         </div>
       </div>
+
+      {/* Real-Time Speech-to-Text Transcription Panel (Phase 7) */}
+      <TranscriptPanel sessionId={sessionId} />
 
       {/* Dual Stream Inspectors: Audio Chunks vs WebSocket Frames */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

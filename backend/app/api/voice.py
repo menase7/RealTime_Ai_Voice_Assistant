@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.core.security import decode_access_token
 from app.services.session_service import get_session_by_id, update_session
+from app.services.assemblyai_service import AssemblyAIService
+from app.models.transcript import Transcript
 from app.schemas.session import SessionUpdate
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,8 @@ async def voice_websocket_endpoint(
 ):
     """
     WebSocket endpoint for real-time voice session streaming.
-    Supports both text control frames (JSON) and binary audio frames (raw bytes/blobs).
-    Phase 6 connects MediaRecorder -> WebSocket -> FastAPI.
+    Phase 7 integrates AssemblyAI speech-to-text with audio forwarding,
+    distinguishing between live partial and persisted final transcripts.
     """
     # 1. Validate JWT Token
     if not token:
@@ -54,22 +56,75 @@ async def voice_websocket_endpoint(
     # Session audio streaming state
     total_chunks_received = 0
     total_bytes_received = 0
-    is_streaming_audio = False
+    assemblyai_service: Optional[AssemblyAIService] = None
+
+    # Callbacks for AssemblyAI transcripts
+    async def on_partial_transcript(text: str):
+        try:
+            await websocket.send_json({
+                "type": "transcript_partial",
+                "text": text,
+                "session_id": session_id,
+                "timestamp": time.time()
+            })
+        except Exception as e:
+            logger.error(f"Failed to dispatch partial transcript: {e}")
+
+    async def on_final_transcript(text: str):
+        try:
+            # 1. Persist final completed transcript to PostgreSQL
+            async with AsyncSessionLocal() as db:
+                transcript_record = Transcript(
+                    session_id=session_id,
+                    speaker="user",
+                    content=text,
+                    is_final=True,
+                    timestamp=time.time()
+                )
+                db.add(transcript_record)
+                await db.commit()
+                await db.refresh(transcript_record)
+                transcript_id = transcript_record.id
+
+            # 2. Dispatch final transcript event to browser WebSocket
+            await websocket.send_json({
+                "type": "transcript_final",
+                "id": transcript_id,
+                "text": text,
+                "speaker": "user",
+                "session_id": session_id,
+                "timestamp": time.time()
+            })
+        except Exception as e:
+            logger.error(f"Failed to persist or dispatch final transcript: {e}")
+
+    async def on_assemblyai_error(error_msg: str):
+        try:
+            await websocket.send_json({
+                "type": "assemblyai_error",
+                "message": error_msg,
+                "timestamp": time.time()
+            })
+        except Exception:
+            pass
 
     # Send Initial Handshake Ack
     await websocket.send_json({
         "type": "connection_ack",
         "session_id": session_id,
         "status": "connected",
-        "phase": 6,
-        "message": "WebSocket connection established and ready for audio streaming",
+        "phase": 7,
+        "message": "WebSocket connected with AssemblyAI transcription pipeline ready",
         "timestamp": time.time()
     })
 
-    # 4. Event Processing Loop (supports both text JSON and binary audio frames)
+    # 4. Event Processing Loop
     try:
         while True:
             message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                logger.info(f"WebSocket client disconnected cleanly from session {session_id}")
+                break
 
             # --- A. BINARY AUDIO FRAME (Microphone Audio Chunks) ---
             if "bytes" in message and message["bytes"] is not None:
@@ -78,7 +133,11 @@ async def voice_websocket_endpoint(
                 total_chunks_received += 1
                 total_bytes_received += chunk_len
 
-                # Send real-time audio chunk ingestion acknowledgement
+                # 1. Forward binary audio to AssemblyAI streaming service
+                if assemblyai_service:
+                    await assemblyai_service.send_audio(audio_bytes)
+
+                # 2. Send chunk ingestion ack
                 await websocket.send_json({
                     "type": "audio_chunk_ack",
                     "chunk_index": total_chunks_received,
@@ -98,11 +157,22 @@ async def voice_websocket_endpoint(
                 event_type = data.get("type")
 
                 if event_type == "start_audio_stream":
-                    is_streaming_audio = True
                     total_chunks_received = 0
                     total_bytes_received = 0
 
-                    # Update session status to active in database
+                    # Initialize & connect AssemblyAI streaming service
+                    if assemblyai_service:
+                        await assemblyai_service.close()
+
+                    assemblyai_service = AssemblyAIService(
+                        session_id=session_id,
+                        on_partial=on_partial_transcript,
+                        on_final=on_final_transcript,
+                        on_error=on_assemblyai_error
+                    )
+                    await assemblyai_service.connect()
+
+                    # Update session status to active
                     async with AsyncSessionLocal() as db:
                         await update_session(
                             db,
@@ -111,7 +181,7 @@ async def voice_websocket_endpoint(
                             session_in=SessionUpdate(status="active")
                         )
 
-                    logger.info(f"Started audio stream for session {session_id}")
+                    logger.info(f"Started audio stream & AssemblyAI pipeline for session {session_id}")
                     await websocket.send_json({
                         "type": "audio_stream_started",
                         "session_id": session_id,
@@ -120,7 +190,10 @@ async def voice_websocket_endpoint(
                     })
 
                 elif event_type == "stop_audio_stream":
-                    is_streaming_audio = False
+                    if assemblyai_service:
+                        await assemblyai_service.close()
+                        assemblyai_service = None
+
                     logger.info(
                         f"Stopped audio stream for session {session_id}: "
                         f"{total_chunks_received} chunks, {total_bytes_received} bytes"
@@ -171,6 +244,10 @@ async def voice_websocket_endpoint(
     except Exception as e:
         logger.error(f"WebSocket error in session {session_id}: {e}")
     finally:
+        if assemblyai_service:
+            await assemblyai_service.close()
+            assemblyai_service = None
+
         logger.info(
             f"WebSocket connection cleaned up for session {session_id}. "
             f"Total ingested: {total_chunks_received} chunks ({total_bytes_received} bytes)"

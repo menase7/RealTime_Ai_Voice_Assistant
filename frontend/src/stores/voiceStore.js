@@ -2,17 +2,30 @@ import { create } from 'zustand';
 import { useAuthStore } from './authStore';
 import { voiceWsService } from '../services/websocket';
 import { audioRecorderService } from '../services/audioRecorder';
+import { apiGetSessionTranscripts } from '../services/api';
 
 let durationTimer = null;
+let reconnectTimer = null;
 
 export const useVoiceStore = create((set, get) => ({
-  // WebSocket State (Phase 4)
-  connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'error'
+  /* =========================================================================
+     1. WebSocket Lifecycle & Connection State (Phase 8 Enhanced)
+     ========================================================================= */
+  // Connection states: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error'
+  connectionStatus: 'disconnected',
+  activeSessionId: null,
+  isManualDisconnect: false,
+  reconnectAttempts: 0,
+  maxReconnectAttempts: 5,
   latency: null,
   eventLogs: [],
   error: null,
 
-  // MediaRecorder Audio State (Phase 5)
+  /* =========================================================================
+     2. Microphone & Audio Recording State (Phase 8 Enhanced)
+     ========================================================================= */
+  // Recording states: 'idle' | 'starting' | 'recording' | 'stopping' | 'error'
+  recordingStatus: 'idle',
   isRecording: false,
   recordingDuration: 0,
   audioChunks: [],
@@ -21,44 +34,79 @@ export const useVoiceStore = create((set, get) => ({
   activeMimeType: '',
   recordingError: null,
 
-  // WebSocket Audio Streaming State (Phase 6)
+  /* =========================================================================
+     3. WebSocket Audio Streaming Telemetry (Phase 6 & 8)
+     ========================================================================= */
   isStreamingAudio: false,
   serverChunksReceived: 0,
   serverBytesReceived: 0,
 
-  // Future phase placeholders (Phase 7: AssemblyAI)
+  /* =========================================================================
+     4. AssemblyAI Streaming Transcripts State (Phase 7 & 8)
+     ========================================================================= */
   isProcessing: false,
   partialTranscript: '',
   finalTranscripts: [],
+  transcriptsLoading: false,
 
   /* =========================================================================
-     WebSocket Actions
+     WebSocket Actions & Reconnection Strategy
      ========================================================================= */
 
   connectSession: (sessionId) => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     const token = useAuthStore.getState().token;
     if (!token) {
-      set({ connectionStatus: 'error', error: 'Authentication token missing' });
+      set({ 
+        connectionStatus: 'error', 
+        error: 'Authentication token missing. Please sign in again.' 
+      });
       return;
     }
 
-    set({ connectionStatus: 'connecting', error: null });
+    const currentStatus = get().connectionStatus;
+    const isReconnecting = currentStatus === 'reconnecting';
+
+    set({ 
+      activeSessionId: sessionId,
+      isManualDisconnect: false,
+      connectionStatus: isReconnecting ? 'reconnecting' : 'connecting', 
+      error: null 
+    });
 
     voiceWsService.connect(sessionId, token, {
       onOpen: () => {
-        set({ connectionStatus: 'connected', error: null });
-        get().addLog('sent', { type: 'connection_handshake', sessionId });
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+
+        set({ 
+          connectionStatus: 'connected', 
+          reconnectAttempts: 0,
+          error: null 
+        });
+
+        get().addLog('sent', { 
+          type: 'connection_handshake', 
+          sessionId, 
+          status: 'connected' 
+        });
       },
 
       onMessage: (data) => {
-        // Handle server audio chunk ingestion acknowledgements (Phase 6)
+        // A. Audio chunk ingestion acknowledgement
         if (data.type === 'audio_chunk_ack') {
           set({
             serverChunksReceived: data.total_chunks,
             serverBytesReceived: data.total_bytes,
           });
 
-          // Log periodically (every 5th chunk) to keep the visual log clean
+          // Log periodically to prevent memory bloat
           if (data.chunk_index % 5 === 0 || data.chunk_index === 1) {
             get().addLog('received', {
               type: 'audio_chunk_ack',
@@ -69,43 +117,157 @@ export const useVoiceStore = create((set, get) => ({
           return;
         }
 
-        get().addLog('received', data);
+        // B. Live partial transcript (in-progress speech)
+        if (data.type === 'transcript_partial') {
+          set({
+            partialTranscript: data.text || '',
+            isProcessing: Boolean(data.text && data.text.trim()),
+          });
+          return;
+        }
 
+        // C. Finalized speech transcript (completed turn, saved in DB)
+        if (data.type === 'transcript_final') {
+          const newFinal = {
+            id: data.id || Math.random().toString(36).substring(2, 9),
+            text: data.text,
+            speaker: data.speaker || 'user',
+            timestamp: data.timestamp || Date.now() / 1000,
+          };
+
+          set((state) => ({
+            finalTranscripts: [...state.finalTranscripts, newFinal],
+            partialTranscript: '', // Clear partial so it never duplicates
+            isProcessing: false,
+          }));
+
+          get().addLog('received', {
+            type: 'transcript_final',
+            speaker: newFinal.speaker,
+            text: newFinal.text,
+          });
+          return;
+        }
+
+        // D. AssemblyAI service error
+        if (data.type === 'assemblyai_error') {
+          set({
+            recordingError: `AssemblyAI: ${data.message}`,
+            isProcessing: false,
+          });
+          get().addLog('received', data);
+          return;
+        }
+
+        // E. Latency measurement (ping/pong)
         if (data.type === 'pong' && data.client_timestamp) {
           const roundTrip = Math.round(performance.now() - data.client_timestamp);
           set({ latency: roundTrip });
         }
+
+        get().addLog('received', data);
       },
 
       onError: () => {
         set({ 
-          connectionStatus: 'error', 
           error: 'WebSocket connection encountered an error' 
         });
       },
 
       onClose: (event) => {
-        set({ 
-          connectionStatus: 'disconnected',
-          latency: null,
-          isStreamingAudio: false,
-        });
-        if (event.code !== 1000) {
-          set({ error: `Connection closed (${event.reason || 'Code ' + event.code})` });
+        const { isManualDisconnect, reconnectAttempts, maxReconnectAttempts, activeSessionId } = get();
+
+        // 1. If user intentionally disconnected or session was closed normally
+        if (isManualDisconnect || event.code === 1000) {
+          set({ 
+            connectionStatus: 'disconnected',
+            latency: null,
+            isStreamingAudio: false,
+            reconnectAttempts: 0,
+          });
+          return;
+        }
+
+        // 2. Unexpected disconnect: Trigger Reconnecting State with Exponential Backoff
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const nextAttempt = reconnectAttempts + 1;
+          const delay = Math.min(1000 * Math.pow(1.5, nextAttempt - 1), 10000);
+
+          set({
+            connectionStatus: 'reconnecting',
+            reconnectAttempts: nextAttempt,
+            latency: null,
+            isStreamingAudio: false,
+            error: `Connection lost (${event.reason || 'Code ' + event.code}). Reconnecting (attempt ${nextAttempt}/${maxReconnectAttempts})...`
+          });
+
+          get().addLog('system', {
+            type: 'reconnecting',
+            attempt: nextAttempt,
+            maxAttempts: maxReconnectAttempts,
+            retryInMs: Math.round(delay),
+          });
+
+          reconnectTimer = setTimeout(() => {
+            if (!get().isManualDisconnect && activeSessionId) {
+              get().connectSession(activeSessionId);
+            }
+          }, delay);
+        } else {
+          // Reconnection attempts exhausted
+          set({
+            connectionStatus: 'error',
+            latency: null,
+            isStreamingAudio: false,
+            error: `Failed to reconnect after ${maxReconnectAttempts} attempts. Please check your connection and click Retry.`
+          });
         }
       },
     });
   },
 
+  /**
+   * Manually trigger immediate reconnect.
+   */
+  reconnectSession: () => {
+    const { activeSessionId } = get();
+    if (!activeSessionId) return;
+
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    set({ 
+      reconnectAttempts: 0, 
+      connectionStatus: 'connecting', 
+      error: null 
+    });
+
+    get().connectSession(activeSessionId);
+  },
+
+  /**
+   * Intentionally close connection and cleanup all listeners and timers.
+   */
   disconnectSession: () => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     if (get().isRecording) {
       get().stopRecording();
     }
+
+    set({ isManualDisconnect: true });
     voiceWsService.disconnect();
+
     set({
       connectionStatus: 'disconnected',
       latency: null,
       isStreamingAudio: false,
+      reconnectAttempts: 0,
       error: null
     });
   },
@@ -150,18 +312,23 @@ export const useVoiceStore = create((set, get) => ({
   clearLogs: () => set({ eventLogs: [] }),
 
   /* =========================================================================
-     MediaRecorder Audio Streaming Actions (Phase 5 & 6)
+     Microphone Audio Recording & PCM16 Streaming Actions
      ========================================================================= */
 
   startRecording: async () => {
-    set({ recordingError: null });
+    set({ 
+      recordingStatus: 'starting', 
+      recordingError: null 
+    });
 
     // Ensure WebSocket is connected before streaming audio
     if (!voiceWsService.isConnected()) {
+      const err = 'Please wait for WebSocket connection before starting recording';
       set({ 
-        recordingError: 'Please wait for WebSocket connection before starting recording' 
+        recordingStatus: 'error',
+        recordingError: err 
       });
-      return { success: false, error: 'WebSocket not connected' };
+      return { success: false, error: err };
     }
 
     try {
@@ -170,22 +337,21 @@ export const useVoiceStore = create((set, get) => ({
       voiceWsService.send(startPayload);
       get().addLog('sent', startPayload);
 
-      // Reset server ingestion telemetry
+      // Reset telemetry
       set({
         serverChunksReceived: 0,
         serverBytesReceived: 0,
         isStreamingAudio: true,
       });
 
-      // 2. Start hardware microphone capture & chunking
+      // 2. Start hardware microphone capture & PCM16 chunk streaming
       const result = await audioRecorderService.startRecording({
-        timeslice: 250, // 250ms progressive chunks
+        timeslice: 250,
 
-        onChunk: (chunkBlob, metadata) => {
-          // Send raw binary frame directly over WebSocket (Phase 6 core pipeline)
+        onChunk: (pcm16Buffer, metadata) => {
           if (voiceWsService.isConnected()) {
             try {
-              voiceWsService.sendBinary(chunkBlob);
+              voiceWsService.sendBinary(pcm16Buffer);
             } catch (err) {
               console.error('Error sending audio chunk over WebSocket:', err);
             }
@@ -205,6 +371,7 @@ export const useVoiceStore = create((set, get) => ({
         onError: (err) => {
           get().stopRecording();
           set({ 
+            recordingStatus: 'error',
             recordingError: err.message || 'Microphone recording error occurred' 
           });
         },
@@ -217,6 +384,7 @@ export const useVoiceStore = create((set, get) => ({
       }, 1000);
 
       set({
+        recordingStatus: 'recording',
         isRecording: true,
         activeMimeType: result.mimeType,
         recordingError: null,
@@ -225,6 +393,7 @@ export const useVoiceStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       set({
+        recordingStatus: 'error',
         isRecording: false,
         isStreamingAudio: false,
         recordingError: err.name === 'NotAllowedError' 
@@ -236,6 +405,8 @@ export const useVoiceStore = create((set, get) => ({
   },
 
   stopRecording: () => {
+    set({ recordingStatus: 'stopping' });
+
     // 1. Stop hardware capture
     audioRecorderService.stopRecording();
 
@@ -261,6 +432,7 @@ export const useVoiceStore = create((set, get) => ({
     }
 
     set({
+      recordingStatus: 'idle',
       isRecording: false,
       isStreamingAudio: false,
       audioLevel: 0,
@@ -274,6 +446,84 @@ export const useVoiceStore = create((set, get) => ({
       recordingDuration: 0,
       serverChunksReceived: 0,
       serverBytesReceived: 0,
+    });
+  },
+
+  /* =========================================================================
+     AssemblyAI Transcripts & Persistence Actions
+     ========================================================================= */
+
+  clearTranscripts: () => {
+    set({
+      partialTranscript: '',
+      finalTranscripts: [],
+      isProcessing: false,
+    });
+  },
+
+  loadPersistedTranscripts: async (sessionId) => {
+    const token = useAuthStore.getState().token;
+    if (!token || !sessionId) return;
+
+    set({ transcriptsLoading: true });
+    try {
+      const records = await apiGetSessionTranscripts(token, sessionId);
+      const formatted = records.map((r) => ({
+        id: r.id,
+        text: r.content,
+        speaker: r.speaker || 'user',
+        timestamp: r.timestamp || new Date(r.created_at).getTime() / 1000,
+        createdAt: r.created_at,
+      }));
+      set({ finalTranscripts: formatted, transcriptsLoading: false });
+    } catch (err) {
+      console.warn('Failed to load persisted transcripts:', err.message);
+      set({ transcriptsLoading: false });
+    }
+  },
+
+  /**
+   * Reset store state cleanly when changing or exiting sessions.
+   */
+  resetSessionState: () => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (durationTimer) {
+      clearInterval(durationTimer);
+      durationTimer = null;
+    }
+
+    audioRecorderService.stopRecording();
+    voiceWsService.disconnect();
+
+    set({
+      connectionStatus: 'disconnected',
+      activeSessionId: null,
+      isManualDisconnect: false,
+      reconnectAttempts: 0,
+      latency: null,
+      eventLogs: [],
+      error: null,
+
+      recordingStatus: 'idle',
+      isRecording: false,
+      recordingDuration: 0,
+      audioChunks: [],
+      totalAudioBytes: 0,
+      audioLevel: 0,
+      activeMimeType: '',
+      recordingError: null,
+
+      isStreamingAudio: false,
+      serverChunksReceived: 0,
+      serverBytesReceived: 0,
+
+      isProcessing: false,
+      partialTranscript: '',
+      finalTranscripts: [],
+      transcriptsLoading: false,
     });
   },
 }));

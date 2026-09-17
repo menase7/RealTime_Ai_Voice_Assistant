@@ -100,6 +100,16 @@ export async function apiDeleteSession(token, sessionId) {
   });
 }
 
+export async function apiGetSessionTranscripts(token, sessionId) {
+  return request(`/sessions/${sessionId}/transcripts`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+
 /* =========================================================================
    Health Diagnostics API
    ========================================================================= */

@@ -7,7 +7,8 @@ import {
   Calendar, 
   Radio, 
   CheckCircle2, 
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import CreateSessionModal from '../components/CreateSessionModal';
@@ -145,11 +146,18 @@ export default function SessionsPage() {
 
                 <div className="flex items-center space-x-2 self-end sm:self-auto">
                   <Link
+                    to={`/sessions/${s.id}`}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 border border-violet-500/20 text-xs font-semibold transition-all hover:scale-[1.02]"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                    <span>Analysis (SSE)</span>
+                  </Link>
+                  <Link
                     to={`/sessions/${s.id}/live`}
                     className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all hover:scale-[1.02]"
                   >
                     <Radio className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Join Live</span>
+                    <span>Live Room</span>
                   </Link>
                   <button
                     onClick={() => handleDelete(s.id)}

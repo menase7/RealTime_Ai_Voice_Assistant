@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import SessionsPage from './pages/SessionsPage';
 import LiveSessionPage from './pages/LiveSessionPage';
+import SessionDetailsPage from './pages/SessionDetailsPage';
 
 export default function App() {
   const { initialize } = useAuthStore();
@@ -38,6 +39,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <SessionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sessions/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <SessionDetailsPage />
                 </ProtectedRoute>
               }
             />

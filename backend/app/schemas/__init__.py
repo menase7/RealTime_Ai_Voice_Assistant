@@ -10,6 +10,10 @@ from app.schemas.session import (
     SessionUpdate,
     SessionResponse
 )
+from app.schemas.transcript import (
+    TranscriptCreate,
+    TranscriptResponse
+)
 
 __all__ = [
     "UserRegister",
@@ -18,5 +22,7 @@ __all__ = [
     "TokenResponse",
     "SessionCreate",
     "SessionUpdate",
-    "SessionResponse"
+    "SessionResponse",
+    "TranscriptCreate",
+    "TranscriptResponse"
 ]

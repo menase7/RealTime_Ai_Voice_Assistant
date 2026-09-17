@@ -12,6 +12,7 @@ from app.services.session_service import (
     update_session,
     delete_session
 )
+from app.services.assemblyai_service import AssemblyAIService
 
 __all__ = [
     "get_user_by_email",
@@ -22,5 +23,6 @@ __all__ = [
     "get_user_sessions",
     "get_session_by_id",
     "update_session",
-    "delete_session"
+    "delete_session",
+    "AssemblyAIService"
 ]

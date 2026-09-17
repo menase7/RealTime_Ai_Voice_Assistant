@@ -25,7 +25,20 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const errorMessage = data?.detail || data?.message || `HTTP ${response.status}: ${response.statusText}`;
+    if (response.status === 401 && options.headers?.Authorization) {
+      // Token expired or invalid: dispatch event for store to handle
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
+
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    if (data?.errors && Array.isArray(data.errors)) {
+      errorMessage = data.errors.map((e) => `${e.field}: ${e.message}`).join(' • ');
+    } else if (data?.detail) {
+      errorMessage = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+    } else if (data?.message) {
+      errorMessage = data.message;
+    }
+
     throw new Error(errorMessage);
   }
 
@@ -103,6 +116,28 @@ export async function apiDeleteSession(token, sessionId) {
 export async function apiGetSessionTranscripts(token, sessionId) {
   return request(`/sessions/${sessionId}/transcripts`, {
     method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+/* =========================================================================
+   Analysis API (Phase 11)
+   ========================================================================= */
+
+export async function apiGetSessionAnalysis(token, sessionId) {
+  return request(`/sessions/${sessionId}/analysis`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function apiDeleteSessionAnalysis(token, sessionId) {
+  return request(`/sessions/${sessionId}/analysis`, {
+    method: 'DELETE',
     headers: {
       Authorization: `Bearer ${token}`,
     },

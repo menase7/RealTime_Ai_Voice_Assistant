@@ -165,7 +165,11 @@ export default function SessionsPage() {
                     title="Delete Session"
                     className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all disabled:opacity-50"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {deletingId === s.id ? (
+                      <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>

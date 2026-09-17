@@ -4,10 +4,10 @@ import { useAuthStore } from '../stores/authStore';
 import { Radio } from 'lucide-react';
 
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, isCheckingAuth } = useAuthStore();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-200">
         <div className="flex flex-col items-center space-y-4">

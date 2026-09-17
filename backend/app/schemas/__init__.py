@@ -14,6 +14,10 @@ from app.schemas.transcript import (
     TranscriptCreate,
     TranscriptResponse
 )
+from app.schemas.analysis import (
+    AnalysisCreate,
+    AnalysisResponse
+)
 
 __all__ = [
     "UserRegister",
@@ -24,5 +28,7 @@ __all__ = [
     "SessionUpdate",
     "SessionResponse",
     "TranscriptCreate",
-    "TranscriptResponse"
+    "TranscriptResponse",
+    "AnalysisCreate",
+    "AnalysisResponse"
 ]

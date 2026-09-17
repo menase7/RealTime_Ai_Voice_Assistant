@@ -10,7 +10,10 @@ from app.services.session_service import (
     get_user_sessions,
     get_session_by_id,
     update_session,
-    delete_session
+    delete_session,
+    get_session_analysis,
+    save_or_update_analysis,
+    delete_session_analysis
 )
 from app.services.assemblyai_service import AssemblyAIService
 
@@ -24,5 +27,8 @@ __all__ = [
     "get_session_by_id",
     "update_session",
     "delete_session",
+    "get_session_analysis",
+    "save_or_update_analysis",
+    "delete_session_analysis",
     "AssemblyAIService"
 ]

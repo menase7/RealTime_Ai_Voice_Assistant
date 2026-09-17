@@ -17,7 +17,8 @@ import {
   FileAudio,
   Server,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import { useVoiceStore } from '../stores/voiceStore';
@@ -234,11 +235,18 @@ export default function LiveSessionPage() {
         </div>
       </div>
 
-      {/* Errors Banner */}
+      {/* Errors Banner & Permissions Guidance */}
       {(wsError || recordingError) && (
-        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-          <span>{recordingError || wsError}</span>
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{recordingError || wsError}</span>
+          </div>
+          {recordingError && recordingError.toLowerCase().includes('permission') && (
+            <p className="text-[11px] text-rose-400/90 pl-6">
+              💡 <strong>How to fix:</strong> Click the lock or microphone icon in your browser address bar (URL bar), set Microphone to <strong>"Allow"</strong>, and click <strong>Retry Connection</strong>.
+            </p>
+          )}
         </div>
       )}
 
@@ -247,7 +255,7 @@ export default function LiveSessionPage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5 text-center md:text-left">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">
-              Phase 7: AssemblyAI Real-Time Transcription Pipeline
+              Phase 12: Production-Ready Real-Time Voice Studio
             </div>
             <h3 className="text-xl font-bold text-white tracking-tight">
               Real-Time Microphone Audio & Speech Transcription

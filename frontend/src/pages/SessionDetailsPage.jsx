@@ -5,22 +5,18 @@ import {
   Sparkles, 
   Radio, 
   Calendar, 
-  Clock, 
   CheckCircle2, 
   AlertCircle, 
   Copy, 
   Check, 
-  User, 
   FileText, 
   Cpu, 
-  Layers, 
-  Volume2, 
   Flame, 
   Lightbulb, 
   HelpCircle,
   Square,
-  RefreshCw,
-  Zap
+  Zap,
+  Database
 } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import { useVoiceStore } from '../stores/voiceStore';
@@ -28,7 +24,7 @@ import { useAnalysisStore } from '../stores/analysisStore';
 
 export default function SessionDetailsPage() {
   const { sessionId } = useParams();
-  const { currentSession, fetchSessionById, isLoading } = useSessionStore();
+  const { currentSession, fetchSessionById } = useSessionStore();
   const { finalTranscripts, loadPersistedTranscripts, transcriptsLoading } = useVoiceStore();
   const {
     isStreaming,
@@ -38,10 +34,13 @@ export default function SessionDetailsPage() {
     weaknesses,
     suggestions,
     isCompleted,
+    savedAnalysis,
+    isLoadingSaved,
     error: analysisError,
     streamEventsLog,
     startAnalysisStream,
     stopAnalysisStream,
+    fetchSavedAnalysis,
     resetAnalysis,
   } = useAnalysisStore();
 
@@ -51,12 +50,13 @@ export default function SessionDetailsPage() {
     if (sessionId) {
       fetchSessionById(sessionId);
       loadPersistedTranscripts(sessionId);
+      fetchSavedAnalysis(sessionId);
     }
 
     return () => {
       resetAnalysis();
     };
-  }, [sessionId, fetchSessionById, loadPersistedTranscripts, resetAnalysis]);
+  }, [sessionId, fetchSessionById, loadPersistedTranscripts, fetchSavedAnalysis, resetAnalysis]);
 
   const handleCopyTranscript = async () => {
     const text = finalTranscripts
@@ -78,6 +78,8 @@ export default function SessionDetailsPage() {
       })
     : '';
 
+  const hasAnalysisData = Boolean(summary || strengths.length > 0 || savedAnalysis);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       {/* Top Header & Navigation */}
@@ -94,8 +96,9 @@ export default function SessionDetailsPage() {
               <h2 className="text-xl font-extrabold text-white tracking-tight">
                 {currentSession?.title || 'Session Details'}
               </h2>
-              <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Phase 9: SSE / EventSource
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-1.5">
+                <Database className="w-3 h-3" />
+                Phase 11: Saved AI Analysis
               </span>
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-400 font-mono mt-1">
@@ -120,7 +123,7 @@ export default function SessionDetailsPage() {
         </div>
       </div>
 
-      {/* Grid: Left Column (Transcripts) & Right Column (SSE Analysis) */}
+      {/* Grid: Left Column (Transcripts) & Right Column (AI Analysis) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: Session Transcript Card */}
         <div className="lg:col-span-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur-xl shadow-xl flex flex-col space-y-4">
@@ -194,7 +197,7 @@ export default function SessionDetailsPage() {
           </div>
         </div>
 
-        {/* RIGHT: AI Analysis via SSE EventSource */}
+        {/* RIGHT: AI Analysis (Saved / Streaming) */}
         <div className="lg:col-span-7 rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950/90 p-5 sm:p-6 backdrop-blur-xl shadow-2xl flex flex-col space-y-5">
           {/* Header & Trigger Controls */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
@@ -205,12 +208,21 @@ export default function SessionDetailsPage() {
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
                   AI Speech Analysis
-                  <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                    SSE Stream
-                  </span>
+                  {savedAnalysis ? (
+                    <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Saved
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                      SSE Stream
+                    </span>
+                  )}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Streams progressive AI insights over HTTP using Server-Sent Events
+                  {savedAnalysis
+                    ? 'Retrieved from PostgreSQL database. You can review or re-run analysis anytime.'
+                    : 'Streams progressive AI insights over HTTP using Server-Sent Events'}
                 </p>
               </div>
             </div>
@@ -230,7 +242,7 @@ export default function SessionDetailsPage() {
                   className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all hover:scale-[1.02]"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>{isCompleted ? 'Re-run Analysis (SSE)' : 'Start Analysis (SSE)'}</span>
+                  <span>{hasAnalysisData ? 'Re-run Analysis (SSE)' : 'Start Analysis (SSE)'}</span>
                 </button>
               )}
             </div>
@@ -258,9 +270,39 @@ export default function SessionDetailsPage() {
             </div>
           )}
 
+          {/* Saved in Database Info Banner */}
+          {savedAnalysis && !isStreaming && (
+            <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/25 flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-2 text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  <strong>Saved in Database:</strong> Analyzed on{' '}
+                  {new Date(savedAnalysis.created_at).toLocaleString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Persistent
+              </span>
+            </div>
+          )}
+
+          {/* Loading saved analysis indicator */}
+          {isLoadingSaved && !isStreaming && (
+            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center space-x-2 text-xs text-slate-400">
+              <Cpu className="w-3.5 h-3.5 text-violet-400 animate-spin" />
+              <span>Checking database for saved AI analysis...</span>
+            </div>
+          )}
+
           {/* Analysis Content Display */}
           <div className="space-y-4 flex-1 overflow-y-auto max-h-[460px] pr-1 custom-scrollbar">
-            {!isStreaming && !summary && strengths.length === 0 ? (
+            {!isStreaming && !hasAnalysisData ? (
               <div className="h-[280px] flex flex-col items-center justify-center text-slate-500 space-y-3 p-6 text-center">
                 <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
                   <Cpu className="w-6 h-6" />
@@ -268,13 +310,13 @@ export default function SessionDetailsPage() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-slate-300">Ready to Stream AI Analysis</p>
                   <p className="text-xs text-slate-500 max-w-sm">
-                    Click <strong>"Start Analysis (SSE)"</strong> above. The backend will stream multi-stage analysis events progressively over time.
+                    Click <strong>"Start Analysis (SSE)"</strong> above. The backend will stream multi-stage analysis events progressively over time and automatically save the results.
                   </p>
                 </div>
               </div>
             ) : (
               <>
-                {/* 1. Summary Section (Progressive chunk typing) */}
+                {/* 1. Summary Section (Progressive chunk typing / Stored text) */}
                 <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-wider">
                     <span className="flex items-center gap-1.5 text-cyan-400">
@@ -364,21 +406,23 @@ export default function SessionDetailsPage() {
                   )}
                 </div>
 
-                {/* SSE Live Events Audit Feed */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5 font-mono text-[11px]">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    SSE EventSource Telemetry Log:
+                {/* SSE Live Events Audit Feed (Only when streaming or events logged) */}
+                {streamEventsLog.length > 0 && (
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5 font-mono text-[11px]">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      SSE EventSource Telemetry Log:
+                    </div>
+                    <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                      {streamEventsLog.map((log) => (
+                        <div key={log.id} className="flex items-center gap-2 text-slate-400 text-[10px]">
+                          <span className="text-slate-600">{log.timestamp}</span>
+                          <span className="text-violet-400 uppercase font-semibold">[{log.type}]</span>
+                          <span className="text-slate-300 truncate">{log.message}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                    {streamEventsLog.map((log) => (
-                      <div key={log.id} className="flex items-center gap-2 text-slate-400 text-[10px]">
-                        <span className="text-slate-600">{log.timestamp}</span>
-                        <span className="text-violet-400 uppercase font-semibold">[{log.type}]</span>
-                        <span className="text-slate-300 truncate">{log.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
               </>
             )}
           </div>

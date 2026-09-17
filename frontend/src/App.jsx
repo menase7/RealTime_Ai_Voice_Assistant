@@ -66,8 +66,8 @@ export default function App() {
 
         <footer className="border-t border-slate-800/60 bg-slate-950/40 py-4 mt-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
-            <div>Real-Time AI Voice Assistant • React 18, FastAPI, PostgreSQL</div>
-            <div className="font-mono text-indigo-400">Phase 4: WebSocket Streaming Active</div>
+            <div>Real-Time AI Voice Assistant • React 18, FastAPI, PostgreSQL, AssemblyAI, Gemini</div>
+            <div className="font-mono text-indigo-400">Phase 12: Production-Ready</div>
           </div>
         </footer>
       </div>

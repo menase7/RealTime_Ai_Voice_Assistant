@@ -8,6 +8,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.transcript import Transcript
+    from app.models.analysis import Analysis
 
 
 class Session(Base):
@@ -55,4 +56,10 @@ class Session(Base):
         back_populates="session",
         cascade="all, delete-orphan",
         order_by="Transcript.timestamp"
+    )
+    analysis: Mapped[Optional["Analysis"]] = relationship(
+        "Analysis",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan"
     )

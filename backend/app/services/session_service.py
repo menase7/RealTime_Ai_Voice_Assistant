@@ -3,6 +3,7 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.session import Session
+from app.models.analysis import Analysis
 from app.schemas.session import SessionCreate, SessionUpdate
 
 
@@ -115,4 +116,82 @@ async def get_session_transcripts(
     )
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_session_analysis(
+    db: AsyncSession,
+    session_id: str,
+    user_id: str
+) -> Optional[Analysis]:
+    """Retrieve saved AI analysis for an owned session."""
+    session = await get_session_by_id(db, session_id, user_id)
+    if not session:
+        return None
+
+    query = select(Analysis).where(Analysis.session_id == session_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def save_or_update_analysis(
+    db: AsyncSession,
+    session_id: str,
+    summary: str,
+    strengths: Optional[List[str]] = None,
+    weaknesses: Optional[List[str]] = None,
+    suggestions: Optional[List[str]] = None,
+) -> Analysis:
+    """
+    Save or update an AI analysis for a session.
+    If an analysis already exists for this session, it is updated;
+    otherwise, a new Analysis record is created.
+    """
+    query = select(Analysis).where(Analysis.session_id == session_id)
+    result = await db.execute(query)
+    analysis = result.scalar_one_or_none()
+
+    clean_strengths = strengths or []
+    clean_weaknesses = weaknesses or []
+    clean_suggestions = suggestions or []
+
+    if analysis:
+        analysis.summary = summary
+        analysis.strengths = clean_strengths
+        analysis.weaknesses = clean_weaknesses
+        analysis.suggestions = clean_suggestions
+        analysis.created_at = datetime.utcnow()
+    else:
+        analysis = Analysis(
+            session_id=session_id,
+            summary=summary,
+            strengths=clean_strengths,
+            weaknesses=clean_weaknesses,
+            suggestions=clean_suggestions,
+        )
+        db.add(analysis)
+
+    await db.commit()
+    await db.refresh(analysis)
+    return analysis
+
+
+async def delete_session_analysis(
+    db: AsyncSession,
+    session_id: str,
+    user_id: str
+) -> bool:
+    """Delete an AI analysis for an owned session."""
+    session = await get_session_by_id(db, session_id, user_id)
+    if not session:
+        return False
+
+    query = select(Analysis).where(Analysis.session_id == session_id)
+    result = await db.execute(query)
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        return False
+
+    await db.delete(analysis)
+    await db.commit()
+    return True
 

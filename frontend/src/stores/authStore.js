@@ -8,6 +8,7 @@ export const useAuthStore = create((set, get) => ({
   token: localStorage.getItem(TOKEN_KEY) || null,
   isAuthenticated: !!localStorage.getItem(TOKEN_KEY),
   isLoading: false,
+  isCheckingAuth: true,
   error: null,
 
   /**
@@ -29,6 +30,7 @@ export const useAuthStore = create((set, get) => ({
         user,
         isAuthenticated: true,
         isLoading: false,
+        isCheckingAuth: false,
         error: null,
       });
       return { success: true };
@@ -55,6 +57,7 @@ export const useAuthStore = create((set, get) => ({
         user,
         isAuthenticated: true,
         isLoading: false,
+        isCheckingAuth: false,
         error: null,
       });
       return { success: true };
@@ -76,6 +79,8 @@ export const useAuthStore = create((set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
+      isLoading: false,
+      isCheckingAuth: false,
       error: null,
     });
   },
@@ -86,11 +91,11 @@ export const useAuthStore = create((set, get) => ({
   initialize: async () => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
-      set({ isAuthenticated: false, user: null, isLoading: false });
+      set({ isAuthenticated: false, user: null, isLoading: false, isCheckingAuth: false });
       return;
     }
 
-    set({ isLoading: true });
+    set({ isLoading: true, isCheckingAuth: true });
     try {
       const user = await apiGetMe(token);
       set({
@@ -98,6 +103,7 @@ export const useAuthStore = create((set, get) => ({
         token,
         isAuthenticated: true,
         isLoading: false,
+        isCheckingAuth: false,
       });
     } catch (err) {
       // Token is expired or invalid
@@ -107,7 +113,22 @@ export const useAuthStore = create((set, get) => ({
         token: null,
         isAuthenticated: false,
         isLoading: false,
+        isCheckingAuth: false,
+        error: 'Your session has expired. Please sign in again.',
       });
     }
   },
 }));
+
+// Setup global 401 Unauthorized listener
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:unauthorized', () => {
+    const { isAuthenticated, logout } = useAuthStore.getState();
+    if (isAuthenticated) {
+      logout();
+      useAuthStore.setState({
+        error: 'Your authentication session has expired. Please log in again.'
+      });
+    }
+  });
+}

@@ -66,8 +66,11 @@ export default function App() {
 
         <footer className="border-t border-slate-800/60 bg-slate-950/40 py-4 mt-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
-            <div>Real-Time AI Voice Assistant • React 18, FastAPI, PostgreSQL, AssemblyAI, Gemini</div>
-            <div className="font-mono text-indigo-400">Phase 12: Production-Ready</div>
+            <div>VoxAI Intelligence Studio • Enterprise Real-Time Speech Processing & Generative Insights</div>
+            <div className="font-mono text-indigo-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Low-Latency Streaming Architecture
+            </div>
           </div>
         </footer>
       </div>

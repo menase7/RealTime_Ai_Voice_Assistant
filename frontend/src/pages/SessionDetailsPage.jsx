@@ -97,8 +97,8 @@ export default function SessionDetailsPage() {
                 {currentSession?.title || 'Session Details'}
               </h2>
               <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-1.5">
-                <Database className="w-3 h-3" />
-                Phase 11: Saved AI Analysis
+                <Sparkles className="w-3 h-3 text-indigo-400" />
+                Executive AI Intelligence
               </span>
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-400 font-mono mt-1">
@@ -107,7 +107,7 @@ export default function SessionDetailsPage() {
                 {formattedDate}
               </span>
               <span>•</span>
-              <span>ID: {sessionId}</span>
+              <span>ID: {sessionId?.slice(0, 8)}...</span>
             </div>
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function SessionDetailsPage() {
                 >
                   <div className="flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-300 uppercase tracking-wide">
-                      {t.speaker === 'user' ? 'You' : t.speaker}
+                      {t.speaker === 'user' ? 'Speaker (You)' : t.speaker}
                     </span>
                     {t.timestamp && (
                       <span className="font-mono">
@@ -202,7 +202,7 @@ export default function SessionDetailsPage() {
           {/* Header & Trigger Controls */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shadow-sm shadow-violet-500/10">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
@@ -215,14 +215,14 @@ export default function SessionDetailsPage() {
                     </span>
                   ) : (
                     <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                      SSE Stream
+                      Live Stream
                     </span>
                   )}
                 </h3>
                 <p className="text-xs text-slate-400">
                   {savedAnalysis
-                    ? 'Retrieved from PostgreSQL database. You can review or re-run analysis anytime.'
-                    : 'Streams progressive AI insights over HTTP using Server-Sent Events'}
+                    ? 'Executive report permanently stored. You can review or regenerate anytime.'
+                    : 'Generates progressive multi-stage insights with real-time token streaming'}
                 </p>
               </div>
             </div>
@@ -242,7 +242,7 @@ export default function SessionDetailsPage() {
                   className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all hover:scale-[1.02]"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>{hasAnalysisData ? 'Re-run Analysis (SSE)' : 'Start Analysis (SSE)'}</span>
+                  <span>{hasAnalysisData ? 'Regenerate Analysis' : 'Generate AI Insights'}</span>
                 </button>
               )}
             </div>
@@ -258,14 +258,14 @@ export default function SessionDetailsPage() {
 
           {/* Active Streaming Status Ticker */}
           {isStreaming && (
-            <div className="p-2.5 rounded-xl bg-violet-950/40 border border-violet-500/30 flex items-center justify-between text-xs text-violet-200">
+            <div className="p-2.5 rounded-xl bg-violet-950/40 border border-violet-500/30 flex items-center justify-between text-xs text-violet-200 animate-pulse">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-violet-400 animate-ping" />
-                <span className="font-semibold text-violet-300">SSE EventSource Active:</span>
+                <span className="font-semibold text-violet-300">AI Intelligence Stream:</span>
                 <span className="italic">{streamStatus}</span>
               </div>
               <span className="text-[10px] font-mono text-violet-400 uppercase tracking-wider">
-                Streaming HTTP
+                Live Streaming
               </span>
             </div>
           )}
@@ -276,7 +276,7 @@ export default function SessionDetailsPage() {
               <div className="flex items-center space-x-2 text-emerald-300">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
-                  <strong>Saved in Database:</strong> Analyzed on{' '}
+                  <strong>Executive Report Saved:</strong> Generated on{' '}
                   {new Date(savedAnalysis.created_at).toLocaleString([], {
                     month: 'short',
                     day: 'numeric',
@@ -287,7 +287,7 @@ export default function SessionDetailsPage() {
                 </span>
               </div>
               <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                Persistent
+                Archived
               </span>
             </div>
           )}
@@ -296,7 +296,7 @@ export default function SessionDetailsPage() {
           {isLoadingSaved && !isStreaming && (
             <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center space-x-2 text-xs text-slate-400">
               <Cpu className="w-3.5 h-3.5 text-violet-400 animate-spin" />
-              <span>Checking database for saved AI analysis...</span>
+              <span>Loading executive AI analysis...</span>
             </div>
           )}
 
@@ -304,13 +304,13 @@ export default function SessionDetailsPage() {
           <div className="space-y-4 flex-1 overflow-y-auto max-h-[460px] pr-1 custom-scrollbar">
             {!isStreaming && !hasAnalysisData ? (
               <div className="h-[280px] flex flex-col items-center justify-center text-slate-500 space-y-3 p-6 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 shadow-inner">
                   <Cpu className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-300">Ready to Stream AI Analysis</p>
+                  <p className="text-sm font-semibold text-slate-300">Ready to Generate AI Insights</p>
                   <p className="text-xs text-slate-500 max-w-sm">
-                    Click <strong>"Start Analysis (SSE)"</strong> above. The backend will stream multi-stage analysis events progressively over time and automatically save the results.
+                    Click <strong>"Generate AI Insights"</strong> above. The AI engine will stream multi-stage analysis progressively in real time and automatically store the results.
                   </p>
                 </div>
               </div>
@@ -406,11 +406,12 @@ export default function SessionDetailsPage() {
                   )}
                 </div>
 
-                {/* SSE Live Events Audit Feed (Only when streaming or events logged) */}
+                {/* Live Events Audit Feed (Only when streaming or events logged) */}
                 {streamEventsLog.length > 0 && (
                   <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5 font-mono text-[11px]">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      SSE EventSource Telemetry Log:
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      Live Streaming Event Audit:
                     </div>
                     <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                       {streamEventsLog.map((log) => (

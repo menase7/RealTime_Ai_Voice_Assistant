@@ -49,12 +49,12 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-2 shadow-lg shadow-indigo-500/10">
-            <Radio className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-2 shadow-lg shadow-indigo-500/15">
+            <Radio className="w-7 h-7 animate-pulse text-indigo-400" />
           </div>
-          <h2 className="text-2xl font-extrabold text-white tracking-tight">Create an Account</h2>
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">Create Your VoxAI Workspace</h2>
           <p className="text-xs text-slate-400">
-            Start streaming audio and receiving real-time AI transcripts
+            Start capturing real-time voice sessions and generating executive AI insights
           </p>
         </div>
 

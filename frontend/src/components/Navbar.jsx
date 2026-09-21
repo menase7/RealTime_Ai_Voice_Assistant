@@ -21,17 +21,18 @@ export default function Navbar() {
         {/* Brand & Nav */}
         <div className="flex items-center space-x-6">
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              <Radio className="w-4.5 h-4.5 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
+              <Radio className="w-4.5 h-4.5 text-white animate-pulse" />
             </div>
             <div>
               <div className="font-bold text-base text-white tracking-tight flex items-center gap-2">
-                Real-Time AI Voice Assistant
-                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  Phase 3
+                VoxAI Studio
+                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  LIVE ENGINE
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">WebSocket & SSE Streaming Platform</p>
+              <p className="text-[11px] text-slate-400">Real-Time Speech & Executive Intelligence</p>
             </div>
           </Link>
 

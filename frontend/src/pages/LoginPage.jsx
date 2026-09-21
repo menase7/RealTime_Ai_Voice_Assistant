@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, AlertCircle, Radio, ArrowRight } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, Radio, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 export default function LoginPage() {
@@ -30,17 +30,22 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoFill = () => {
+    setEmail('demo@voxai.com');
+    setPassword('demo123456');
+  };
+
   return (
     <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-2 shadow-lg shadow-indigo-500/10">
-            <Radio className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-2 shadow-lg shadow-indigo-500/15">
+            <Radio className="w-7 h-7 animate-pulse text-indigo-400" />
           </div>
-          <h2 className="text-2xl font-extrabold text-white tracking-tight">Welcome Back</h2>
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">Welcome to VoxAI Studio</h2>
           <p className="text-xs text-slate-400">
-            Sign in to access your real-time voice sessions and AI transcripts
+            Sign in to access real-time voice sessions and executive AI intelligence
           </p>
         </div>
 
@@ -52,6 +57,15 @@ export default function LoginPage() {
               <span>{error}</span>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={handleDemoFill}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 text-xs font-medium transition-all hover:scale-[1.01]"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Click to Autofill Demo Account (demo@voxai.com)</span>
+          </button>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

@@ -129,11 +129,10 @@ app_start_time = time.time()
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to the Real-Time AI Voice Assistant API",
+        "message": "Welcome to VoxAI Studio Enterprise API",
         "docs": "/docs",
         "status": "operational",
-        "phase": 12,
-        "environment": "production-ready"
+        "environment": "production"
     }
 
 
@@ -159,6 +158,5 @@ async def health_check(db: AsyncSession = Depends(get_db)):
             "status": db_status,
             "latency_ms": db_latency_ms
         },
-        "phase": 12,
-        "message": "Phase 12: Production Improvements operational"
+        "message": "VoxAI Studio services operational"
     }

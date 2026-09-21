@@ -73,7 +73,7 @@ export default function TranscriptPanel({ sessionId }) {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-sm shadow-cyan-500/10">
             <MessageSquare className="w-5 h-5" />
           </div>
           <div>
@@ -81,12 +81,12 @@ export default function TranscriptPanel({ sessionId }) {
               <h3 className="text-base font-bold text-white tracking-tight">
                 Live Speech-to-Text Transcription
               </h3>
-              <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                AssemblyAI
+              <span className="text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                LIVE STT STREAM
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Real-time speech recognition streaming with partial and final transcripts
+              Continuous real-time speech transcription with instantaneous turn detection
             </p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export default function TranscriptPanel({ sessionId }) {
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Copied!</span>
+                    <span className="text-emerald-400 font-medium">Copied!</span>
                   </>
                 ) : (
                   <>
@@ -155,19 +155,19 @@ export default function TranscriptPanel({ sessionId }) {
           </div>
         ) : finalTranscripts.length === 0 && !partialTranscript ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-3 p-6 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 shadow-inner">
               <Mic className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-300">No transcripts recorded yet</p>
+              <p className="text-sm font-semibold text-slate-300">No speech recorded yet</p>
               <p className="text-xs text-slate-500 max-w-sm">
-                Press <span className="text-cyan-400 font-semibold">"Start Audio Streaming"</span> and speak into your microphone. Words will appear live below in real-time.
+                Press <span className="text-cyan-400 font-semibold">"Start Audio Streaming"</span> and speak into your microphone. Words will appear live below in real time.
               </p>
             </div>
           </div>
         ) : (
           <>
-            {/* Completed / Final Transcripts */}
+            {/* Completed Transcripts */}
             {finalTranscripts.map((item, idx) => (
               <div 
                 key={item.id || idx}
@@ -179,10 +179,7 @@ export default function TranscriptPanel({ sessionId }) {
                       <User className="w-3 h-3" />
                     </span>
                     <span className="font-semibold text-slate-200 uppercase tracking-wide text-[10px]">
-                      {item.speaker === 'user' ? 'You' : item.speaker}
-                    </span>
-                    <span className="text-emerald-400 font-medium text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                      FINAL
+                      {item.speaker === 'user' ? 'Speaker (You)' : item.speaker}
                     </span>
                   </div>
                   {item.timestamp && (
@@ -205,10 +202,10 @@ export default function TranscriptPanel({ sessionId }) {
                   <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
                     <span className="font-bold text-cyan-300 uppercase tracking-wide text-[10px]">
-                      Live Draft (Partial)
+                      Real-Time Ingest
                     </span>
                   </div>
-                  <span className="text-[10px] text-indigo-400/80 italic">in-progress...</span>
+                  <span className="text-[10px] text-indigo-400/80 italic">transcribing speech...</span>
                 </div>
                 <p className="text-sm text-cyan-100 font-medium italic leading-relaxed pt-1">
                   {partialTranscript}
@@ -226,9 +223,9 @@ export default function TranscriptPanel({ sessionId }) {
           <span>Segments: <strong className="text-slate-300">{finalTranscripts.length}</strong></span>
           <span>Approx Words: <strong className="text-slate-300">{totalWords}</strong></span>
         </div>
-        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
           <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-          <span>AssemblyAI Streaming (16kHz)</span>
+          <span>Ultra-Low Latency Speech Pipeline</span>
         </div>
       </div>
     </div>

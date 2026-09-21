@@ -67,7 +67,7 @@ export default function SessionsPage() {
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Manage your audio recordings, transcripts, and real-time WebSocket sessions
+            Manage your voice recordings, live transcripts, and AI-generated insights
           </p>
         </div>
 
@@ -102,7 +102,7 @@ export default function SessionsPage() {
           <div>
             <h3 className="text-base font-semibold text-white">No voice sessions found</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-              Create your first voice session to start recording microphone audio and testing live transcription.
+              Create your first voice session to record live speech and generate AI executive summaries.
             </p>
           </div>
           <button
@@ -147,10 +147,10 @@ export default function SessionsPage() {
                 <div className="flex items-center space-x-2 self-end sm:self-auto">
                   <Link
                     to={`/sessions/${s.id}`}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 border border-violet-500/20 text-xs font-semibold transition-all hover:scale-[1.02]"
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 border border-violet-500/20 text-xs font-semibold transition-all hover:scale-[1.02]"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                    <span>Analysis (SSE)</span>
+                    <span>AI Insights</span>
                   </Link>
                   <Link
                     to={`/sessions/${s.id}/live`}

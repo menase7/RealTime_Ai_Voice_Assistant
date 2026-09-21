@@ -20,13 +20,39 @@ class Settings(BaseSettings):
     def sanitize_database_url(cls, v: str) -> str:
         if isinstance(v, str):
             v = v.strip()
+            # Normalize PostgreSQL scheme to asyncpg dialect
             if v.startswith("postgres://"):
                 v = v.replace("postgres://", "postgresql+asyncpg://", 1)
             elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
                 v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-            if "sslmode=" in v:
+            
+            # Clean unsupported query parameters for asyncpg (e.g. channel_binding, sslmode)
+            try:
+                from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+                parsed = urlparse(v)
+                qs = parse_qs(parsed.query)
+                # Remove libpq parameters unsupported by asyncpg
+                qs.pop("channel_binding", None)
+                qs.pop("options", None)
+                # Convert sslmode to ssl
+                if "sslmode" in qs:
+                    sslmode_val = qs.pop("sslmode")[0]
+                    if sslmode_val in ("require", "verify-ca", "verify-full"):
+                        qs["ssl"] = ["require"]
+                elif "ssl" not in qs and "neon.tech" in (parsed.hostname or ""):
+                    qs["ssl"] = ["require"]
+                
+                flat_qs = {k: val[0] if len(val) == 1 else val for k, val in qs.items()}
+                v = urlunparse(parsed._replace(query=urlencode(flat_qs, doseq=True)))
+            except Exception:
+                # Fallback regex/string replacement
+                import re
+                v = re.sub(r'[?&]channel_binding=[^&]*', '', v)
                 v = v.replace("sslmode=", "ssl=")
+                if v.endswith("&") or v.endswith("?"):
+                    v = v[:-1]
         return v
+
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
